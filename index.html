@@ -451,28 +451,53 @@ function showTeacherThanks(teacher,className){
         <div style="font-weight:800;color:#193b53;margin-bottom:9px">📋 ملخص عناصر السلوك</div>
         ${summary.length?summary.map(([b,n])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f1;font-size:13px"><span>${esc(b)}</span><b style="color:#0f766e">${n}</b></div>`).join(""):'<div style="color:#71808c;font-size:12px">لا توجد تفاصيل إضافية.</div>'}
       </div>
-      <div style="margin-top:17px;font-size:13px;color:#64748b">سيتم إغلاق الصفحة تلقائيًا خلال <b id="thanksCountdown">5</b> ثوانٍ</div>
-      <button id="closeThanksBtn" style="margin-top:12px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">إغلاق الآن</button>
-      <div id="closeThanksHint" style="display:none;margin-top:10px;font-size:12px;color:#71808c">إذا منع المتصفح الإغلاق التلقائي، اضغطي «إغلاق الآن» للعودة.</div>
+      <div style="margin-top:17px;font-size:13px;color:#64748b">سيتم الانتقال إلى ملخص التصويت وإعادة الرصد تلقائيًا خلال <b id="thanksCountdown">10</b> ثوانٍ</div>
+      <button id="closeThanksBtn" style="margin-top:12px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">الانتقال الآن إلى ملخص التصويت</button>
     </div>
   </div>`;
   document.body.appendChild(box);
   playThanksSound();
-  let left=5;
+  let left=10;
+  const finish=()=>{
+    clearInterval(timer);
+    const b=document.getElementById("teacherThanksOverlay");
+    if(b)b.remove();
+    renderPostVoteSummary(teacher,className);
+  };
   const timer=setInterval(()=>{
     left--;
-    const el=document.getElementById("thanksCountdown");if(el)el.textContent=String(Math.max(0,left));
-    if(left<=0){clearInterval(timer);close();}
+    const el=document.getElementById("thanksCountdown");
+    if(el)el.textContent=String(Math.max(0,left));
+    if(left<=0)finish();
   },1000);
-  const close=()=>{
-    clearInterval(timer);
-    try{window.close()}catch{}
-    setTimeout(()=>{
-      const b=document.getElementById("teacherThanksOverlay");
-      if(b){const h=document.getElementById("closeThanksHint");if(h)h.style.display="block";}
-    },500);
-  };
-  document.getElementById("closeThanksBtn")?.addEventListener("click",close);
+  document.getElementById("closeThanksBtn")?.addEventListener("click",finish);
+}
+function renderPostVoteSummary(teacher,className){
+  const c=currentClass();
+  const votes=principalVotesToday();
+  const totals=teacherVoteTotals(votes);
+  const myVote=totals.find(x=>String(x[0])===String(teacher));
+  const summaryRows=totals.length?totals.map((x,i)=>`<div class="vote-row"><span class="rank">${i+1}</span><b style="min-width:120px">${esc(x[0])}</b><span class="bar"><i style="width:${Math.round((x[1]/(totals[0][1]||1))*100)}%;background:var(--teal)"></i></span><span class="pill">${x[1]} نقطة</span></div>`).join(""):'<p class="muted">لا توجد أصوات مديرة مسجلة اليوم حتى الآن.</p>';
+  const target=c?esc(c.id):"";
+  const name=c?esc(c.name):esc(className||"الفصل");
+  $("#app").innerHTML=`<section class="card" style="max-width:900px;margin:22px auto;text-align:center">
+    <div style="font-size:46px">⭐</div>
+    <h2 style="color:var(--teal);margin-bottom:6px">ملخص التصويت والرصد</h2>
+    <p class="muted">تم اعتماد رصد ${esc(className||name)} للمعلمة ${esc(teacher||"المعلمة")}.</p>
+    <div class="grid g3" style="margin:18px 0">
+      <div class="stat c1"><b>${votes.length}</b><span>تصويتات المديرة اليوم</span></div>
+      <div class="stat c2"><b>${votes.reduce((s,v)=>s+(Number(v.weight)||0),0)}</b><span>مجموع النقاط</span></div>
+      <div class="stat c3"><b>${myVote?myVote[1]:0}</b><span>نقاط المعلمة الحالية</span></div>
+    </div>
+    <section class="card" style="text-align:right;background:#fbfcfe">
+      <h3>⭐ ملخص تصويت المديرة للمعلمات</h3>
+      <div class="vote-board">${summaryRows}</div>
+    </section>
+    <div class="row" style="justify-content:center;margin-top:18px">
+      <button class="btn primary" onclick="go('scan','${target}')">🔄 إعادة الرصد</button>
+      <button class="btn navy" onclick="go('dashboard')">🏠 لوحة التحكم</button>
+    </div>
+  </section>`;
 }
 function playThanksSound(){
   try{
