@@ -405,22 +405,46 @@ function bulkApplySameBehaviorConfirm(){
 }
 function showTeacherThanks(teacher,className){
   const name=String(teacher||"المعلمة").trim()||"المعلمة";
+  const c=currentClass();
+  const rows=(state.attendance||[]).filter(a=>a.date===today()&&String(a.classId)===String(c?.id));
+  const studentRows=rows.filter(a=>a.studentId&&a.status!=="تصويت المديرة");
+  const uniqueStudents=new Set(studentRows.map(a=>String(a.studentId))).size;
+  const behaviorCounts={};
+  studentRows.forEach(a=>String(a.behavior||"").split(/[،,]/).map(x=>x.trim()).filter(Boolean).forEach(b=>behaviorCounts[b]=(behaviorCounts[b]||0)+1));
+  const summary=Object.entries(behaviorCounts);
+  const total=studentRows.length;
   const box=document.createElement("div");
   box.id="teacherThanksOverlay";
-  box.innerHTML=`<div style="position:fixed;inset:0;z-index:99999;background:rgba(8,31,49,.58);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:18px;direction:rtl">
-    <div style="width:min(560px,100%);background:linear-gradient(145deg,#ffffff,#f4fbf8);border:1px solid #d7eee6;border-radius:28px;padding:34px 24px;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.25);animation:thanksPop .45s ease-out">
-      <div style="font-size:58px;line-height:1;margin-bottom:12px">🌷✨</div>
-      <div style="font-size:27px;font-weight:800;color:#0f766e;margin-bottom:10px">شكرًا لكِ يا ${esc(name)}</div>
-      <div style="font-size:18px;font-weight:700;color:#193b53;line-height:1.9">نقدّر جهودكِ الجميلة في تعزيز السلوك الإيجابي لدى طالباتكِ</div>
-      <div style="margin:14px auto 0;width:min(380px,100%);height:4px;border-radius:20px;background:linear-gradient(90deg,#b7e4d4,#0f766e,#b7e4d4)"></div>
-      <div style="font-size:14px;color:#6b7c8b;margin-top:14px">تم اعتماد الرصد${className?" — "+esc(className):""}</div>
-      <button id="closeThanksBtn" style="margin-top:22px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">إغلاق</button>
-      <div id="closeThanksHint" style="display:none;margin-top:10px;font-size:12px;color:#71808c">إذا لم تُغلق الصفحة تلقائيًا، اضغطي «إغلاق» للعودة.</div>
+  box.innerHTML=`<div style="position:fixed;inset:0;z-index:99999;background:rgba(8,31,49,.62);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl">
+    <div style="width:min(620px,100%);max-height:92vh;overflow:auto;background:linear-gradient(145deg,#ffffff,#f4fbf8);border:1px solid #d7eee6;border-radius:28px;padding:28px 20px;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.25);animation:thanksPop .45s ease-out">
+      <div style="font-size:54px;line-height:1;margin-bottom:10px">🌷✨</div>
+      <div style="font-size:26px;font-weight:800;color:#0f766e;margin-bottom:8px">شكرًا لكِ يا ${esc(name)}</div>
+      <div style="font-size:17px;font-weight:700;color:#193b53;line-height:1.9">نقدّر جهودكِ الجميلة في تعزيز السلوك الإيجابي لدى طالباتكِ</div>
+      <div style="margin:14px auto;width:min(420px,100%);height:4px;border-radius:20px;background:linear-gradient(90deg,#b7e4d4,#0f766e,#b7e4d4)"></div>
+      <div style="font-size:14px;color:#6b7c8b;margin-bottom:14px">تم اعتماد الرصد ${className?"— "+esc(className):""}</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 auto 14px;max-width:520px">
+        <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:13px"><b style="display:block;font-size:25px;color:#0f766e">${total}</b><span style="font-size:12px;color:#71808c">إجمالي عمليات الرصد</span></div>
+        <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:13px"><b style="display:block;font-size:25px;color:#0f766e">${uniqueStudents}</b><span style="font-size:12px;color:#71808c">طالبات تم رصدهن</span></div>
+      </div>
+      <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:14px;text-align:right;max-width:520px;margin:auto">
+        <div style="font-weight:800;color:#193b53;margin-bottom:9px">📋 ملخص عناصر السلوك</div>
+        ${summary.length?summary.map(([b,n])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f1;font-size:13px"><span>${esc(b)}</span><b style="color:#0f766e">${n}</b></div>`).join(""):'<div style="color:#71808c;font-size:12px">لا توجد تفاصيل إضافية.</div>'}
+      </div>
+      <div style="margin-top:17px;font-size:13px;color:#64748b">سيتم إغلاق الصفحة تلقائيًا خلال <b id="thanksCountdown">5</b> ثوانٍ</div>
+      <button id="closeThanksBtn" style="margin-top:12px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">إغلاق الآن</button>
+      <div id="closeThanksHint" style="display:none;margin-top:10px;font-size:12px;color:#71808c">إذا منع المتصفح الإغلاق التلقائي، اضغطي «إغلاق الآن» للعودة.</div>
     </div>
   </div>`;
   document.body.appendChild(box);
   playThanksSound();
+  let left=5;
+  const timer=setInterval(()=>{
+    left--;
+    const el=document.getElementById("thanksCountdown");if(el)el.textContent=String(Math.max(0,left));
+    if(left<=0){clearInterval(timer);close();}
+  },1000);
   const close=()=>{
+    clearInterval(timer);
     try{window.close()}catch{}
     setTimeout(()=>{
       const b=document.getElementById("teacherThanksOverlay");
@@ -428,7 +452,6 @@ function showTeacherThanks(teacher,className){
     },500);
   };
   document.getElementById("closeThanksBtn")?.addEventListener("click",close);
-  setTimeout(close,3000);
 }
 function playThanksSound(){
   try{
