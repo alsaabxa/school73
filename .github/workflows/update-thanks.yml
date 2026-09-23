@@ -2,7 +2,8 @@ name: Update teacher thanks screen
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -11,112 +12,66 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Update screen
-        shell: python
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Patch index.html
         run: |
+          python3 <<'PY'
           from pathlib import Path
-          import re
-
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-
-          if 'id=\"thanksCountdown\">10' in s or 'ملخص التصويت' in s[s.find('function showTeacherThanks'):s.find('function playThanksSound') if 'function playThanksSound' in s else len(s)]:
-              print('Already updated')
-              raise SystemExit(0)
-
           start = s.find('function showTeacherThanks(')
           end = s.find('function playThanksSound()', start)
           if start < 0 or end < 0:
               raise SystemExit('showTeacherThanks function not found')
+          fn = s[start:end]
+          if 'thanksCountdown">10' in fn and 'thanksVoteView' in fn:
+              print('Already updated')
+              raise SystemExit(0)
 
-          new_fn = r'''function showTeacherThanks(teacher,className){
-  const name=String(teacher||"المعلمة").trim()||"المعلمة";
-  const c=currentClass();
-  const rows=(state.attendance||[]).filter(a=>a.date===today()&&String(a.classId)===String(c?.id));
-  const studentRows=rows.filter(a=>a.studentId&&a.status!=="تصويت المديرة");
-  const uniqueStudents=new Set(studentRows.map(a=>String(a.studentId))).size;
-  const behaviorCounts={};
-  studentRows.forEach(a=>String(a.behavior||"").split(/[،,]/).map(x=>x.trim()).filter(Boolean).forEach(b=>behaviorCounts[b]=(behaviorCounts[b]||0)+1));
-  const summary=Object.entries(behaviorCounts);
-  const total=studentRows.length;
-  const pv=principalVotesToday();
-  const pvTotals=teacherVoteTotals(pv);
-  const voteSummary=pvTotals.length?pvTotals.map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eef3f1"><span style="font-weight:800;min-width:28px">${i<3?["🥇","🥈","🥉"][i]:i+1}</span><span style="flex:1;font-weight:700">${esc(t[0])}</span><b style="color:#0f766e">${t[1]} نقطة</b></div>`).join(""): '<div style="color:#71808c;font-size:12px">لا توجد تصويتات للمديرة اليوم بعد.</div>';
-  const box=document.createElement("div");
-  box.id="teacherThanksOverlay";
-  box.innerHTML=`<div style="position:fixed;inset:0;z-index:99999;background:rgba(8,31,49,.62);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl">
-    <div style="width:min(620px,100%);max-height:92vh;overflow:auto;background:linear-gradient(145deg,#ffffff,#f4fbf8);border:1px solid #d7eee6;border-radius:28px;padding:28px 20px;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.25);animation:thanksPop .45s ease-out">
-      <div id="thanksMessageView">
-        <div style="font-size:54px;line-height:1;margin-bottom:10px">🌷✨</div>
-        <div style="font-size:26px;font-weight:800;color:#0f766e;margin-bottom:8px">شكرًا لكِ يا ${esc(name)}</div>
-        <div style="font-size:17px;font-weight:700;color:#193b53;line-height:1.9">نقدّر جهودكِ الجميلة في تعزيز السلوك الإيجابي لدى طالباتكِ</div>
-        <div style="margin:14px auto;width:min(420px,100%);height:4px;border-radius:20px;background:linear-gradient(90deg,#b7e4d4,#0f766e,#b7e4d4)"></div>
-        <div style="font-size:14px;color:#6b7c8b;margin-bottom:14px">تم اعتماد الرصد ${className?"— "+esc(className):""}</div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 auto 14px;max-width:520px">
-          <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:13px"><b style="display:block;font-size:25px;color:#0f766e">${total}</b><span style="font-size:12px;color:#71808c">إجمالي عمليات الرصد</span></div>
-          <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:13px"><b style="display:block;font-size:25px;color:#0f766e">${uniqueStudents}</b><span style="font-size:12px;color:#71808c">طالبات تم رصدهن</span></div>
-        </div>
-        <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:14px;text-align:right;max-width:520px;margin:auto">
-          <div style="font-weight:800;color:#193b53;margin-bottom:9px">📋 ملخص عناصر السلوك</div>
-          ${summary.length?summary.map(([b,n])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f1;font-size:13px"><span>${esc(b)}</span><b style="color:#0f766e">${n}</b></div>`).join(""): '<div style="color:#71808c;font-size:12px">لا توجد تفاصيل إضافية.</div>'}
-        </div>
-        <div style="margin-top:17px;font-size:13px;color:#64748b">ستنتقلين إلى ملخص التصويت خلال <b id="thanksCountdown">10</b> ثوانٍ</div>
-        <button id="closeThanksBtn" style="margin-top:12px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">الانتقال إلى ملخص التصويت</button>
-      </div>
-      <div id="thanksVoteView" style="display:none">
-        <div style="font-size:46px;line-height:1;margin-bottom:8px">⭐</div>
-        <div style="font-size:24px;font-weight:800;color:#0f766e;margin-bottom:5px">ملخص التصويت</div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:14px">نتائج تصويت المديرة للمعلمات اليوم</div>
-        <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:14px;text-align:right">${voteSummary}</div>
-        <button id="redoScanBtn" class="btn primary" style="margin-top:16px;width:100%;min-height:52px;font-size:17px">🔄 إعادة الرصد</button>
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(box);
-  playThanksSound();
-  let left=10;
-  let timer=null;
-  const showVotes=()=>{
-    if(timer)clearInterval(timer);
-    const msg=document.getElementById("thanksMessageView"),vote=document.getElementById("thanksVoteView");
-    if(msg)msg.style.display="none";
-    if(vote)vote.style.display="block";
-  };
-  timer=setInterval(()=>{
-    left--;
-    const el=document.getElementById("thanksCountdown");if(el)el.textContent=String(Math.max(0,left));
-    if(left<=0){clearInterval(timer);showVotes();}
-  },1000);
-  document.getElementById("closeThanksBtn")?.addEventListener("click",showVotes);
-  document.getElementById("redoScanBtn")?.addEventListener("click",()=>{
+          fn = fn.replace('سيتم إغلاق الصفحة تلقائيًا خلال <b id="thanksCountdown">5</b> ثوانٍ', 'ستنتقلين إلى ملخص التصويت خلال <b id="thanksCountdown">10</b> ثوانٍ')
+          fn = fn.replace('إغلاق الآن', 'الانتقال إلى ملخص التصويت')
+          fn = fn.replace('إذا منع المتصفح الإغلاق التلقائي، اضغطي «إغلاق الآن» للعودة.', 'بعد الانتقال سيبقى ملخص التصويت ظاهرًا ويمكنكِ اختيار «إعادة الرصد».')
+          fn = fn.replace('let left=5;', 'let left=10;')
+          fn = fn.replace('if(left<=0){clearInterval(timer);close();}', 'if(left<=0){clearInterval(timer);close();}')
+          old_close = '''const close=()=>{
     clearInterval(timer);
-    box.remove();
-    route="scan";
-    render(false);
-    setTimeout(()=>document.querySelector('#teacher')?.focus(),80);
-  });
-}'''
-
-          s = s[:start] + new_fn + '\n' + s[end:]
+    try{window.close()}catch{}
+    setTimeout(()=>{
+      const b=document.getElementById("teacherThanksOverlay");
+      if(b){const h=document.getElementById("closeThanksHint");if(h)h.style.display="block";}
+    },500);
+  };'''
+          new_close = '''const close=()=>{
+    clearInterval(timer);
+    const b=document.getElementById("teacherThanksOverlay");
+    if(!b)return;
+    const pvTotals=teacherVoteTotals(principalVotesToday());
+    const voteSummary=pvTotals.length?pvTotals.map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #eef3f1"><span style="font-weight:800;min-width:30px">${i<3?["🥇","🥈","🥉"][i]:i+1}</span><span style="flex:1;font-weight:700">${esc(t[0])}</span><b style="color:#0f766e">${t[1]} نقطة</b></div>`).join(""):"<div style=\"color:#71808c;font-size:13px\">لا توجد تصويتات للمديرة اليوم بعد.</div>";
+    b.innerHTML=`<div style="position:fixed;inset:0;z-index:99999;background:rgba(8,31,49,.62);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl"><div style="width:min(620px,100%);max-height:92vh;overflow:auto;background:linear-gradient(145deg,#ffffff,#f4fbf8);border:1px solid #d7eee6;border-radius:28px;padding:28px 20px;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.25)"><div style="font-size:46px">⭐</div><div style="font-size:25px;font-weight:800;color:#0f766e">ملخص التصويت</div><div style="font-size:13px;color:#64748b;margin:6px 0 16px">نتائج تصويت المديرة للمعلمات اليوم</div><div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:14px;text-align:right">${voteSummary}</div><button id="redoScanBtn" style="margin-top:16px;width:100%;min-height:52px;border:0;border-radius:14px;background:linear-gradient(135deg,#0d9488,#0b7d72);color:#fff;font-size:17px;font-weight:800;cursor:pointer">🔄 إعادة الرصد</button></div></div>`;
+    document.getElementById("redoScanBtn")?.addEventListener("click",()=>{
+      b.remove();
+      route="scan";
+      render(false);
+      setTimeout(()=>document.querySelector('#teacher')?.focus(),80);
+    });
+  };'''
+          if old_close not in fn:
+              raise SystemExit('close function pattern not found')
+          fn = fn.replace(old_close, new_close)
+          s = s[:start] + fn + s[end:]
           p.write_text(s, encoding='utf-8')
-      - name: Commit changes
-        shell: bash
+          PY
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m "Set 10-second thanks screen and voting summary"
           git push
       - name: Remove one-time workflow
         if: success()
-        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
