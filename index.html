@@ -19,6 +19,7 @@
 @media(max-width:950px){.g4{grid-template-columns:repeat(2,1fr)}.g3,.qrgrid{grid-template-columns:1fr 1fr}.student-list{grid-template-columns:1fr 1fr}.clock{display:none}}@media(max-width:600px){.btn{min-height:44px}.nav button{min-height:42px}.student-row{padding:10px}.modalbox{padding:16px}.wrap{padding:13px}.g4,.g3,.g2,.qrgrid,.student-list{grid-template-columns:1fr}.topbar{padding:10px}.brand h1{font-size:15px}.brand p{font-size:10px}}
 @media print{.topbar,.nav,.no-print,.footer{display:none!important}.wrap{max-width:none;padding:0}.card{box-shadow:none;border:0}}
 .teacher-vote-row{display:flex;gap:10px;align-items:stretch}.teacher-vote-row #teacher{flex:1}.teacher-vote-button{white-space:nowrap}.behavior-active-wrap{font-weight:800}@media(max-width:700px){.teacher-vote-row{flex-direction:column}.teacher-vote-button{width:100%}}
+.scan-page-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px}.scan-page-head h2{margin:2px 0 4px}.scan-kicker{font-size:11px;font-weight:800;color:var(--teal)}.scan-class-pill{padding:9px 14px;border-radius:999px;background:#edf7f5;color:var(--teal);font-weight:800;white-space:nowrap}.scan-selected-teachers{margin-top:6px}.scan-progress{margin:0 0 14px;padding:14px 16px;background:#f7fbfd;border:1px solid #dce9ef;border-radius:16px}.scan-progress-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.scan-progress-detail{margin-right:8px}.scan-percent{font-weight:800;color:var(--teal);font-size:18px}.scan-progress-bar{height:9px;background:#e8eef2;border-radius:99px;overflow:hidden}.scan-progress-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),#55b9a9);border-radius:99px;transition:width .25s ease}.scan-behaviors{background:#f8fbfc;border-color:#dce9ef;padding:14px 16px}.scan-behavior-summary{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.scan-search{margin-bottom:8px}.scan-hint{margin:0 0 10px}.scan-student-row{transition:.18s ease}.scan-student-row.present{border-color:#74c69d;background:#effaf4}.scan-student-name b{font-size:14px}.scan-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 8px}.scan-actions .scan-action:first-child{min-width:220px}.scan-bulk{margin-top:4px}.scan-bulk .scan-action{font-size:12px}@media(max-width:700px){.scan-page{padding:15px}.scan-page-head{align-items:flex-start}.scan-class-pill{font-size:11px;padding:7px 10px}.scan-actions{flex-direction:column;align-items:stretch}.scan-actions .scan-action:first-child{min-width:0;width:100%}.scan-actions .scan-action{width:100%}.scan-actions .pill{align-self:center}.scan-behaviors{padding:12px}.scan-behavior-summary .chip{flex:1 1 auto}.scan-student-name b{font-size:13px}}
 .footer-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;text-align:center;flex-wrap:wrap}.footer-row span{flex:1;min-width:150px}
 .class-card.alert80{border-color:var(--gold);box-shadow:0 0 0 4px rgba(201,150,44,.18);animation:alertPop 1s ease}@keyframes alertPop{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}.alert-badge{display:inline-flex;align-items:center;gap:4px;margin-right:6px;padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#241a02;font-size:11px;font-weight:800}
 .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#241a02;font-size:11px;font-weight:800;margin-right:6px}
@@ -234,55 +235,74 @@ function renderScan(direct=false){
   const dte=today(),rows=state.attendance.filter(a=>a.date===dte&&String(a.classId)===String(c.id));
   if(!selectedTeachers.length&&rows[0]?.teacher) selectedTeachers=String(rows[0].teacher).split(/[،,]/).map(x=>x.trim()).filter(Boolean);
   const activeBehaviors=selectedBehaviors();
-  return `<section class="card">
-    <div class="row between">
-      <div><h2>رصد السلوك — ${esc(c.name)}</h2><p class="muted">بعد مسح QR الخاص بالفصل تظهر قائمة أسماء الطالبات مباشرة.</p></div>
-
+  const classStudents=state.students.filter(s=>String(s.classId)===String(c.id));
+  const doneCount=new Set(rows.filter(x=>x.studentId).map(x=>String(x.studentId))).size;
+  const pct=classStudents.length?Math.round(doneCount/classStudents.length*100):0;
+  return `<section class="card scan-page">
+    <div class="scan-page-head">
+      <div>
+        <div class="scan-kicker">رصد اليوم</div>
+        <h2>رصد السلوك — ${esc(c.name)}</h2>
+        <p class="muted">قائمة الطالبات جاهزة للرصد. اختاري عنصر السلوك لكل طالبة.</p>
+      </div>
+      <span class="scan-class-pill">${esc(c.name)}</span>
     </div>
 
     <div class="field">
-      <label>أسماء المعلمات الراصدات (يمكن اختيار أكثر من اسم)</label>
+      <label>أسماء المعلمات الراصدات</label>
       <div class="chips" id="teacherChips">${state.teacherNames.map(x=>{const nm=x.name||x;return `<span class="chip sm ${selectedTeachers.includes(nm)?'sel':''}" onclick="toggleTeacherChip('${esc(nm)}')">${esc(nm)}</span>`}).join("")||`<span class="muted">لا توجد أسماء محفوظة بعد.</span>`}</div>
       <div class="teacher-vote-row" style="margin-top:8px">
         <input id="teacherNew" placeholder="أضيفي اسمًا جديدًا واضغطي Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeacherChipFromInput()}">
         <button class="btn gold vote-btn teacher-vote-button" type="button" onclick="principalVoteForTeacher()">⭐ تصويت المديرة +${Number(state.principalVoteWeight||2)} نقطة</button>
       </div>
       <input id="teacher" type="hidden" value="${esc(selectedTeachers.join('، '))}">
-      ${selectedTeachers.length?`<p class="muted" style="margin-top:6px">الراصدات الآن: <b>${esc(selectedTeachers.join('، '))}</b></p>`:""}
+      ${selectedTeachers.length?`<p class="muted scan-selected-teachers">الراصدات الآن: <b>${esc(selectedTeachers.join('، '))}</b></p>`:""}
       <div id="principalVoteStatus" style="margin-top:8px"></div>
     </div>
 
-    <div class="card" style="margin:0 0 14px;background:#f7fbfd">
-      <b>عناصر السلوك المعتمدة من الإعدادات</b>
-      <p class="muted" style="margin:5px 0 0">${activeBehaviors.length ? esc(activeBehaviors.join("، ")) : "لم يتم اختيار أي عنصر من الإعدادات."}</p>
+    <div class="scan-progress">
+      <div class="scan-progress-top">
+        <div><b>إنجاز رصد الفصل</b><span class="muted scan-progress-detail">${doneCount} من ${classStudents.length} طالبة</span></div>
+        <span class="scan-percent">${pct}%</span>
+      </div>
+      <div class="scan-progress-bar"><i style="width:${pct}%"></i></div>
     </div>
 
-    <div class="field">
-      <label>🔍 بحث عن طالبة</label>
+    <div class="card scan-behaviors" style="margin:0 0 14px">
+      <div class="row between" style="gap:8px">
+        <div><b>عناصر السلوك المعتمدة</b><p class="muted" style="margin:3px 0 0">محددة من صفحة الإعدادات.</p></div>
+        <span class="pill">${activeBehaviors.length} عنصر</span>
+      </div>
+      <div class="scan-behavior-summary">${activeBehaviors.length ? activeBehaviors.map(b=>`<span class="chip sm">${esc(b)}</span>`).join("") : `<span class="muted">لم يتم اختيار أي عنصر من الإعدادات.</span>`}</div>
+    </div>
+
+    <div class="field scan-search">
+      <label>🔍 البحث عن طالبة</label>
       <input id="studentSearch" placeholder="اكتبي اسم الطالبة للبحث السريع..." oninput="filterStudentList(this.value)">
     </div>
-    <p class="muted" style="margin:0 0 10px">تنقّلي بين الطالبات وارصدي كل واحدة، ثم اضغطي "حفظ وإرسال" في النهاية لاعتماد رصد اليوم كاملاً دفعة واحدة.</p>
+    <p class="muted scan-hint">اختاري عنصر السلوك للطالبة. عند اكتمال الرصد ستظهر علامة ✓ بجانب اسمها.</p>
 
     <div class="student-list" id="studentListWrap">
-      ${state.students.filter(s=>String(s.classId)===String(c.id)).map(s=>{
+      ${classStudents.map(s=>{
         const r=rows.find(x=>x.studentId===s.id);
+        const done=!!r;
         const chipBehaviors=activeBehaviors.length?activeBehaviors:DEFAULT_BEHAVIORS;
-        return `<div class="student-row ${r?.status==='متميز'?'present':''}" data-name="${esc(s.name)}">
+        return `<div class="student-row scan-student-row ${done?'present':''}" data-name="${esc(s.name)}">
           <div style="width:100%">
-            <div class="row between"><b>${esc(s.name)}</b><span class="pill">${r ? 'تم الرصد' : 'جاهزة للرصد'}</span></div>
+            <div class="row between scan-student-name"><b>${esc(s.name)}</b><span class="pill">${done ? '✓ تم الرصد' : 'جاهزة للرصد'}</span></div>
             <div class="chips behavior-chips">${chipBehaviors.map(b=>`<span class="chip sm ${r&&hasBehavior(r,b)?'sel':''}" onclick="markBehavior('${esc(s.id)}','${esc(b)}')">${esc(b)}</span>`).join("")}</div>
           </div>
         </div>`;
       }).join("")||`<p class="muted">لا توجد طالبات في الفصل.</p>`}
     </div>
 
-    <div class="row" style="margin:14px 0">
+    <div class="scan-actions">
       <button class="btn primary scan-action" onclick="saveScan()">💾 حفظ وإرسال رصد اليوم</button>
       <button class="btn danger scan-action" onclick="deleteToday('${esc(c.id)}')">إعادة رصد اليوم</button>
-      <span class="pill">تم رصد ${rows.length}</span>
+      <span class="pill">تم رصد ${rows.length} سجل</span>
     </div>
-    <div class="row" style="margin:0 0 14px">
-      <button class="btn scan-action" style="font-size:12px" onclick="bulkApplySameBehaviorConfirm()">📋 تحديد نفس العنصر لجميع الطالبات دفعة واحدة (إجراء جماعي)</button>
+    <div class="scan-bulk">
+      <button class="btn scan-action" onclick="bulkApplySameBehaviorConfirm()">📋 تحديد نفس العنصر لجميع الطالبات دفعة واحدة</button>
     </div>
     <div id="lastScan" style="margin-top:12px"></div>
     <div id="teacherThanks"></div>
