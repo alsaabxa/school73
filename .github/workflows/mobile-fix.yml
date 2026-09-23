@@ -1,0 +1,84 @@
+name: Fix mobile data loading
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch mobile bootstrap loading
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("index.html")
+          s = p.read_text(encoding="utf-8")
+          old = '''function pull(silent=true){if(!configured())return;fetch(SCRIPT_URL+"?action=bootstrap&_="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(x=>{if(x.ok!==false){state.classes=x.classes||[];state.students=x.students||[];state.staff=x.staff||[];\nconst serverAtt=x.attendance||[];const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));\nstate.attendance=[...serverAtt,...pendingLocal];\nstate.teacherNames=x.teacherNames||[];\nstate.behaviorConfig=x.behaviorConfig||state.behaviorConfig||[];\nstate.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;\nstate.principalVotes=x.principalVotes||state.principalVotes||[];\nBEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);\nconst fp=dataFingerprint();if(silent&&fp===lastFingerprint){return}lastFingerprint=fp;\nsaveLocal();if(!silent)toast("تم تحديث البيانات");render(false)}}).catch(()=>{})}\n'''
+          new = '''async function pull(silent=true){
+  if(!configured())return;
+  const url=SCRIPT_URL+"?action=bootstrap&_="+Date.now();
+  let lastError="تعذر تحميل بيانات الفصول والطالبات";
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),12000);
+      const r=await fetch(url,{cache:"no-store",redirect:"follow",credentials:"omit",signal:controller.signal});
+      clearTimeout(timer);
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      const x=await r.json();
+      if(x.ok===false)throw new Error(x.error||"تعذر الاتصال بمصدر البيانات");
+      state.classes=Array.isArray(x.classes)?x.classes:[];
+      state.students=Array.isArray(x.students)?x.students:[];
+      state.staff=Array.isArray(x.staff)?x.staff:[];
+      const serverAtt=Array.isArray(x.attendance)?x.attendance:[];
+      const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));
+      state.attendance=[...serverAtt,...pendingLocal];
+      state.teacherNames=Array.isArray(x.teacherNames)?x.teacherNames:[];
+      state.behaviorConfig=Array.isArray(x.behaviorConfig)?x.behaviorConfig:(state.behaviorConfig||[]);
+      state.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;
+      state.principalVotes=Array.isArray(x.principalVotes)?x.principalVotes:(state.principalVotes||[]);
+      BEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);
+      const fp=dataFingerprint();
+      const changed=fp!==lastFingerprint;
+      lastFingerprint=fp;
+      saveLocal();
+      if(changed||!silent)render(false);
+      if(!silent)toast("تم تحديث الفصول والطالبات بنجاح");
+      return true;
+    }catch(e){
+      lastError=e?.name==="AbortError"?"انتهت مهلة الاتصال بمصدر البيانات":(e?.message||lastError);
+      if(attempt<3)await new Promise(res=>setTimeout(res,700*attempt));
+    }
+  }
+  if(!silent)toast("تعذر تحميل الفصول والطالبات: "+lastError);
+  return false;
+}
+'''
+          if old not in s:
+              raise SystemExit("pull block not found")
+          s = s.replace(old, new, 1)
+
+          old2 = '''loadLocal();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session())startPolling();'''
+          new2 = '''loadLocal();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session()){startPolling();pull(false);}'''
+          if old2 not in s:
+              raise SystemExit("startup block not found")
+          s = s.replace(old2, new2, 1)
+
+          p.write_text(s, encoding="utf-8")
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix mobile data loading [skip ci]"
+          git push
