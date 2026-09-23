@@ -20,7 +20,17 @@ jobs:
           from pathlib import Path
           p = Path("index.html")
           s = p.read_text(encoding="utf-8")
-          old = '''function pull(silent=true){if(!configured())return;fetch(SCRIPT_URL+"?action=bootstrap&_="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(x=>{if(x.ok!==false){state.classes=x.classes||[];state.students=x.students||[];state.staff=x.staff||[];\nconst serverAtt=x.attendance||[];const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));\nstate.attendance=[...serverAtt,...pendingLocal];\nstate.teacherNames=x.teacherNames||[];\nstate.behaviorConfig=x.behaviorConfig||state.behaviorConfig||[];\nstate.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;\nstate.principalVotes=x.principalVotes||state.principalVotes||[];\nBEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);\nconst fp=dataFingerprint();if(silent&&fp===lastFingerprint){return}lastFingerprint=fp;\nsaveLocal();if(!silent)toast("تم تحديث البيانات");render(false)}}).catch(()=>{})}\n'''
+          old = '''function pull(silent=true){if(!configured())return;fetch(SCRIPT_URL+"?action=bootstrap&_="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(x=>{if(x.ok!==false){state.classes=x.classes||[];state.students=x.students||[];state.staff=x.staff||[];
+const serverAtt=x.attendance||[];const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));
+state.attendance=[...serverAtt,...pendingLocal];
+state.teacherNames=x.teacherNames||[];
+state.behaviorConfig=x.behaviorConfig||state.behaviorConfig||[];
+state.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;
+state.principalVotes=x.principalVotes||state.principalVotes||[];
+BEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);
+const fp=dataFingerprint();if(silent&&fp===lastFingerprint){return}lastFingerprint=fp;
+saveLocal();if(!silent)toast("تم تحديث البيانات");render(false)}}).catch(()=>{})}
+'''
           new = '''async function pull(silent=true){
   if(!configured())return;
   const url=SCRIPT_URL+"?action=bootstrap&_="+Date.now();
