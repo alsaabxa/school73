@@ -451,13 +451,13 @@ function showTeacherThanks(teacher,className){
         <div style="font-weight:800;color:#193b53;margin-bottom:9px">📋 ملخص عناصر السلوك</div>
         ${summary.length?summary.map(([b,n])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f1;font-size:13px"><span>${esc(b)}</span><b style="color:#0f766e">${n}</b></div>`).join(""):'<div style="color:#71808c;font-size:12px">لا توجد تفاصيل إضافية.</div>'}
       </div>
-      <div style="margin-top:17px;font-size:13px;color:#64748b">سيتم الانتقال إلى ملخص التصويت وإعادة الرصد تلقائيًا خلال <b id="thanksCountdown">10</b> ثوانٍ</div>
+      <div style="margin-top:17px;font-size:13px;color:#64748b">سيتم الانتقال إلى ملخص التصويت وإعادة الرصد تلقائيًا خلال <b id="thanksCountdown">30</b> ثوانٍ</div>
       <button id="closeThanksBtn" style="margin-top:12px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">الانتقال الآن إلى ملخص التصويت</button>
     </div>
   </div>`;
   document.body.appendChild(box);
   playThanksSound();
-  let left=10;
+  let left=30;
   const finish=()=>{
     clearInterval(timer);
     const b=document.getElementById("teacherThanksOverlay");
@@ -536,7 +536,22 @@ function saveScan(){const c=currentClass(),rows=state.attendance.filter(a=>a.dat
   beepSuccess(); showTeacherThanks(teacher,c.name);
 }
 
-function deleteToday(cid){if(!confirm("حذف رصد هذا الفصل لهذا اليوم؟"))return;state.attendance=state.attendance.filter(a=>!(String(a.classId)===String(cid)&&a.date===today()));saveLocal();push("deleteToday",{classId:cid,date:today()});render();toast("تمت إعادة رصد اليوم")}
+async function deleteToday(cid){
+  if(!confirm("حذف رصد هذا الفصل لهذا اليوم؟"))return;
+  const d=today();
+  const ids=state.attendance.filter(a=>String(a.classId)===String(cid)&&a.date===d).map(a=>a.id).filter(Boolean);
+  state.attendance=state.attendance.filter(a=>!(String(a.classId)===String(cid)&&a.date===d));
+  saveLocal(); render();
+  toast("جاري حذف الرصد من الجهاز والمصدر...");
+  const result=await api("deleteToday",{classId:cid,date:d,ids});
+  if(result?.ok){
+    toast("تم حذف رصد الفصل اليوم ومزامنته بنجاح");
+    await pull(true);
+  }else{
+    toast("حُذف من الجهاز، لكن تعذرت المزامنة: "+(result?.error||"خطأ غير معروف"));
+    await pull(true);
+  }
+}
 function beepSuccess(){try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const ac=new A(),o=ac.createOscillator(),g=ac.createGain();o.type="sine";o.frequency.setValueAtTime(660,ac.currentTime);o.frequency.setValueAtTime(880,ac.currentTime+.12);g.gain.setValueAtTime(.0001,ac.currentTime);g.gain.exponentialRampToValueAtTime(.18,ac.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.42);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.45)}catch{}}
 function renderQR(){return `<section class="card"><div class="row between"><div><h2>أكواد QR للفصول</h2><p class="muted">مسح الرمز يفتح رصد الفصل مباشرة.</p></div><button class="btn primary" onclick="printAllQR()">طباعة جميع الأكواد</button></div><div class="qrgrid">${state.classes.map(c=>`<div class="card qr"><h3>${esc(c.name)}</h3><div id="qr_${esc(c.id)}" class="qrbox"></div><div class="pill">تعزيز السلوك الإيجابي</div><p class="muted" style="margin:8px 0 0;font-size:11px;line-height:1.7">الموجهة الطلابية أ/ مها العتيبي<br>الأستاذة فاطمة الصعب</p><input value="${esc(buildQrUrl(c.id))}" readonly><div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" onclick="copyText('${esc(buildQrUrl(c.id))}')">نسخ الرابط</button><button class="btn sm" onclick="printOneQR('${esc(c.id)}')">طباعة</button></div></div>`).join("")||`<p class="muted">لا توجد فصول.</p>`}</div></section>`}
 function buildQrUrl(id){return location.href.split("?")[0]+"?class="+encodeURIComponent(id)}function afterQr(){state.classes.forEach(c=>{const el=$("#qr_"+c.id);if(el&&window.QRCode){el.innerHTML="";new QRCode(el,{text:buildQrUrl(c.id),width:150,height:150,colorDark:"#102a43",colorLight:"#ffffff"})}})}function copyText(x){navigator.clipboard?.writeText(x).then(()=>toast("تم نسخ الرابط")).catch(()=>toast(x))}
