@@ -497,7 +497,7 @@ function exportCurrentHTML(){const blob=new Blob([reportHTMLCurrent()],{type:'te
 function closeModal(){$('#modal').classList.add('hidden');$('#modal').innerHTML=''}
 function moeLogoTag(cls){return MOE_LOGO_URL?`<img class="${cls||''}" src="${esc(MOE_LOGO_URL)}" alt="شعار وزارة التعليم">`:''}
 function initMoeLogoHeader(){const box=$('#moeLogoHeader');if(!box)return;if(MOE_LOGO_URL){box.innerHTML=`<img src="${esc(MOE_LOGO_URL)}" alt="شعار وزارة التعليم">`;box.classList.add('show')}}
-loadLocal();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session()){startPolling();pull(false);}
+loadLocal();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session()){startPolling();}else if(qclass){pull(false);}
 </script>
 </body>
 </html>
