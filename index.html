@@ -58,16 +58,45 @@ function session(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||"nul
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),3000)}
 function configured(){return SCRIPT_URL&&!SCRIPT_URL.startsWith("ضع_هنا")}
 function api(action,payload={}){if(!configured())return Promise.resolve({ok:false,error:"لم يتم وضع رابط Web App بعد"});return fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,payload})}).then(r=>r.json()).catch(e=>({ok:false,error:e.message}))}
-function pull(silent=true){if(!configured())return;fetch(SCRIPT_URL+"?action=bootstrap&_="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(x=>{if(x.ok!==false){state.classes=x.classes||[];state.students=x.students||[];state.staff=x.staff||[];
-const serverAtt=x.attendance||[];const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));
-state.attendance=[...serverAtt,...pendingLocal];
-state.teacherNames=x.teacherNames||[];
-state.behaviorConfig=x.behaviorConfig||state.behaviorConfig||[];
-state.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;
-state.principalVotes=x.principalVotes||state.principalVotes||[];
-BEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);
-const fp=dataFingerprint();if(silent&&fp===lastFingerprint){return}lastFingerprint=fp;
-saveLocal();if(!silent)toast("تم تحديث البيانات");render(false)}}).catch(()=>{})}
+async function pull(silent=true){
+  if(!configured())return;
+  const url=SCRIPT_URL+"?action=bootstrap&_="+Date.now();
+  let lastError="تعذر تحميل بيانات الفصول والطالبات";
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),12000);
+      const r=await fetch(url,{cache:"no-store",redirect:"follow",credentials:"omit",signal:controller.signal});
+      clearTimeout(timer);
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      const x=await r.json();
+      if(x.ok===false)throw new Error(x.error||"تعذر الاتصال بمصدر البيانات");
+      state.classes=Array.isArray(x.classes)?x.classes:[];
+      state.students=Array.isArray(x.students)?x.students:[];
+      state.staff=Array.isArray(x.staff)?x.staff:[];
+      const serverAtt=Array.isArray(x.attendance)?x.attendance:[];
+      const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));
+      state.attendance=[...serverAtt,...pendingLocal];
+      state.teacherNames=Array.isArray(x.teacherNames)?x.teacherNames:[];
+      state.behaviorConfig=Array.isArray(x.behaviorConfig)?x.behaviorConfig:(state.behaviorConfig||[]);
+      state.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;
+      state.principalVotes=Array.isArray(x.principalVotes)?x.principalVotes:(state.principalVotes||[]);
+      BEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);
+      const fp=dataFingerprint();
+      const changed=fp!==lastFingerprint;
+      lastFingerprint=fp;
+      saveLocal();
+      if(changed||!silent)render(false);
+      if(!silent)toast("تم تحديث الفصول والطالبات بنجاح");
+      return true;
+    }catch(e){
+      lastError=e?.name==="AbortError"?"انتهت مهلة الاتصال بمصدر البيانات":(e?.message||lastError);
+      if(attempt<3)await new Promise(res=>setTimeout(res,700*attempt));
+    }
+  }
+  if(!silent)toast("تعذر تحميل الفصول والطالبات: "+lastError);
+  return false;
+}
 function dataFingerprint(){return JSON.stringify({c:state.classes.length,s:state.students.length,a:state.attendance.length,last:state.attendance[state.attendance.length-1]?.id||"",pv:(state.principalVotes||[]).length})}
 function push(action,payload){api(action,payload).then(x=>{if(x.ok){const ids=(Array.isArray(payload)?payload:[payload]).map(p=>p?.id).filter(Boolean);ids.forEach(id=>{const rec=state.attendance.find(a=>a.id===id);if(rec)delete rec.pending});saveLocal()}else{toast("تم الحفظ محلياً، وتعذرت المزامنة: "+(x.error||""))}})}
 function go(r,cid=""){if(cid&&cid!==selectedClassId)selectedTeachers=[];route=r;selectedClassId=cid||selectedClassId;render()}
@@ -468,7 +497,7 @@ function exportCurrentHTML(){const blob=new Blob([reportHTMLCurrent()],{type:'te
 function closeModal(){$('#modal').classList.add('hidden');$('#modal').innerHTML=''}
 function moeLogoTag(cls){return MOE_LOGO_URL?`<img class="${cls||''}" src="${esc(MOE_LOGO_URL)}" alt="شعار وزارة التعليم">`:''}
 function initMoeLogoHeader(){const box=$('#moeLogoHeader');if(!box)return;if(MOE_LOGO_URL){box.innerHTML=`<img src="${esc(MOE_LOGO_URL)}" alt="شعار وزارة التعليم">`;box.classList.add('show')}}
-loadLocal();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session())startPolling();
+loadLocal();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session()){startPolling();pull(false);}
 </script>
 </body>
 </html>
