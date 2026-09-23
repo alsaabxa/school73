@@ -229,40 +229,26 @@ function cleanImportedText(t){return String(t||"").split(/\r?\n/).map(x=>x.repla
 function importText(){const cid=$("#impclass").value,rows=parseNames($("#imptext").value);if(!rows.length){toast("لم يتم العثور على أسماء");return}const ss=rows.map(x=>({id:uid("S"),classId:cid,number:x.number,name:x.name}));state.students.push(...ss);saveLocal();push("saveStudent",{students:ss});closeModal();render();toast("تمت إضافة "+ss.length+" طالبة")}
 function renderScan(direct=false){
   const c=currentClass();
-  if(!c){const d0=today();return `<section class="card"><h2>رصد السلوك</h2><p class="muted">اختاري الفصل الذي تريدين رصد سلوك طالباته:</p><div class="grid g3" style="margin-top:14px">${state.classes.map(cl=>{const n=state.students.filter(s=>String(s.classId)===String(cl.id)).length;const z=new Set(state.attendance.filter(x=>x.date===d0&&String(x.classId)===String(cl.id)).map(x=>x.studentId)).size;const pct=n?Math.round(z/n*100):0;return `<div class="class-card" style="cursor:pointer" onclick="go('scan','${esc(cl.id)}')"><div class="row between"><h3>${esc(cl.name)}</h3><span class="pill">${esc(cl.number||"")}</span></div><p class="muted">${z} من ${n} طالبة</p><div class="row between" style="margin:7px 0 5px"><span class="muted">نسبة الإنجاز</span><b class="pct-live">${pct}%</b></div><div class="progress"><i style="width:${pct}%"></i></div></div>`}).join("")||`<p class="muted">لا توجد فصول بعد، أضيفي فصلاً من صفحة "الفصول والطالبات".</p>`}</div></section>`}
+  if(!c){const d0=today();return `<section class="card"><h2>رصد السلوك</h2><div class="grid g3" style="margin-top:14px">${state.classes.map(cl=>{const n=state.students.filter(s=>String(s.classId)===String(cl.id)).length;const z=new Set(state.attendance.filter(x=>x.date===d0&&String(x.classId)===String(cl.id)).map(x=>x.studentId)).size;const pct=n?Math.round(z/n*100):0;return `<div class="class-card" style="cursor:pointer" onclick="go('scan','${esc(cl.id)}')"><div class="row between"><h3>${esc(cl.name)}</h3><span class="pill">${esc(cl.number||"")}</span></div><p class="muted">${z} من ${n} طالبة</p><div class="row between" style="margin:7px 0 5px"><span class="muted">نسبة الإنجاز</span><b class="pct-live">${pct}%</b></div><div class="progress"><i style="width:${pct}%"></i></div></div>`}).join("")||`<p class="muted">لا توجد فصول بعد.</p>`}</div></section>`}
   if(!direct&&!canAccessClass(c.id))return `<section class="card"><h2>غير مصرح</h2><p class="muted">هذا الفصل غير مسند إلى حسابك.</p></section>`;
   const dte=today(),rows=state.attendance.filter(a=>a.date===dte&&String(a.classId)===String(c.id));
   if(!selectedTeachers.length&&rows[0]?.teacher) selectedTeachers=String(rows[0].teacher).split(/[،,]/).map(x=>x.trim()).filter(Boolean);
   const activeBehaviors=selectedBehaviors();
-  return `<section class="card">
-    <div class="row between">
-      <div><h2>رصد السلوك — ${esc(c.name)}</h2><p class="muted">بعد مسح QR الخاص بالفصل تظهر قائمة أسماء الطالبات مباشرة.</p></div>
-      <button class="btn" onclick="go('dashboard')">الرئيسية</button>
+  const teacherOptions=state.teacherNames.map(x=>x.name||x).filter(Boolean);
+  const currentTeacher=selectedTeachers[0]||"";
+  return `<section class="scan-direct card">
+    <div class="teacher-vote-row" style="margin-bottom:18px">
+      <select id="teacherSelect" style="flex:1;font-size:17px;font-weight:700;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#fff" onchange="selectedTeachers=this.value?[this.value]:[];document.getElementById('teacher').value=this.value||''">
+        <option value="">اسم المعلمة</option>
+        ${teacherOptions.map(n=>`<option value="${esc(n)}" ${n===currentTeacher?"selected":""}>${esc(n)}</option>`).join("")}
+      </select>
+      <button class="btn gold vote-btn teacher-vote-button" type="button" onclick="principalVoteForTeacher()">⭐ تصويت المديرة +${Number(state.principalVoteWeight||2)} نقطة</button>
     </div>
-
-    <div class="field">
-      <label>أسماء المعلمات الراصدات (يمكن اختيار أكثر من اسم)</label>
-      <div class="chips" id="teacherChips">${state.teacherNames.map(x=>{const nm=x.name||x;return `<span class="chip sm ${selectedTeachers.includes(nm)?'sel':''}" onclick="toggleTeacherChip('${esc(nm)}')">${esc(nm)}</span>`}).join("")||`<span class="muted">لا توجد أسماء محفوظة بعد.</span>`}</div>
-      <div class="teacher-vote-row" style="margin-top:8px">
-        <input id="teacherNew" placeholder="أضيفي اسمًا جديدًا واضغطي Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeacherChipFromInput()}">
-        <button class="btn gold vote-btn teacher-vote-button" type="button" onclick="principalVoteForTeacher()">⭐ تصويت المديرة +${Number(state.principalVoteWeight||2)} نقطة</button>
-      </div>
-      <input id="teacher" type="hidden" value="${esc(selectedTeachers.join('، '))}">
-      ${selectedTeachers.length?`<p class="muted" style="margin-top:6px">الراصدات الآن: <b>${esc(selectedTeachers.join('، '))}</b></p>`:""}
-      <div id="principalVoteStatus" style="margin-top:8px"></div>
+    <input id="teacher" type="hidden" value="${esc(currentTeacher)}">
+    <div id="principalVoteStatus"></div>
+    <div class="field" style="margin-top:4px">
+      <input id="studentSearch" placeholder="بحث باسم الطالبة" oninput="filterStudentList(this.value)">
     </div>
-
-    <div class="card" style="margin:0 0 14px;background:#f7fbfd">
-      <b>عناصر السلوك المعتمدة من الإعدادات</b>
-      <p class="muted" style="margin:5px 0 0">${activeBehaviors.length ? esc(activeBehaviors.join("، ")) : "لم يتم اختيار أي عنصر من الإعدادات."}</p>
-    </div>
-
-    <div class="field">
-      <label>🔍 بحث عن طالبة</label>
-      <input id="studentSearch" placeholder="اكتبي اسم الطالبة للبحث السريع..." oninput="filterStudentList(this.value)">
-    </div>
-    <p class="muted" style="margin:0 0 10px">تنقّلي بين الطالبات وارصدي كل واحدة، ثم اضغطي "حفظ وإرسال" في النهاية لاعتماد رصد اليوم كاملاً دفعة واحدة.</p>
-
     <div class="student-list" id="studentListWrap">
       ${state.students.filter(s=>String(s.classId)===String(c.id)).map(s=>{
         const r=rows.find(x=>x.studentId===s.id);
@@ -275,17 +261,10 @@ function renderScan(direct=false){
         </div>`;
       }).join("")||`<p class="muted">لا توجد طالبات في الفصل.</p>`}
     </div>
-
     <div class="row" style="margin:14px 0">
-      <button class="btn primary scan-action" onclick="saveScan()">💾 حفظ وإرسال رصد اليوم</button>
+      <button class="btn primary scan-action" onclick="saveScan()">💾 حفظ وإرسال الرصد</button>
       <button class="btn danger scan-action" onclick="deleteToday('${esc(c.id)}')">إعادة رصد اليوم</button>
-      <span class="pill">تم رصد ${rows.length}</span>
     </div>
-    <div class="row" style="margin:0 0 14px">
-      <button class="btn scan-action" style="font-size:12px" onclick="bulkApplySameBehaviorConfirm()">📋 تحديد نفس العنصر لجميع الطالبات دفعة واحدة (إجراء جماعي)</button>
-    </div>
-    <div id="lastScan" style="margin-top:12px"></div>
-    <div id="teacherThanks"></div>
   </section>`;
 }
 function filterStudentList(q){
