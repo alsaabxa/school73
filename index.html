@@ -237,7 +237,7 @@ function renderScan(direct=false){
   return `<section class="card">
     <div class="row between">
       <div><h2>رصد السلوك — ${esc(c.name)}</h2><p class="muted">بعد مسح QR الخاص بالفصل تظهر قائمة أسماء الطالبات مباشرة.</p></div>
-      <button class="btn" onclick="go('dashboard')">الرئيسية</button>
+
     </div>
 
     <div class="field">
@@ -495,7 +495,7 @@ function renderPostVoteSummary(teacher,className){
     </section>
     <div class="row" style="justify-content:center;margin-top:18px">
       <button class="btn primary" onclick="go('scan','${target}')">🔄 إعادة الرصد</button>
-      <button class="btn navy" onclick="go('dashboard')">🏠 لوحة التحكم</button>
+
     </div>
   </section>`;
 }
