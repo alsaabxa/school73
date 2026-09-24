@@ -81,7 +81,7 @@ async function pull(silent=true){
       state.teacherNames=Array.isArray(x.teacherNames)?x.teacherNames:[];
       state.behaviorConfig=Array.isArray(x.behaviorConfig)?x.behaviorConfig:(state.behaviorConfig||[]);
       state.principalVoteWeight=Number(x.principalVoteWeight??state.principalVoteWeight??2)||2;
-      state.principalVotes=Array.isArray(x.principalVotes)?x.principalVotes:(state.principalVotes||[]);
+      const serverPV=Array.isArray(x.principalVotes)?x.principalVotes:[];const pendingPV=(state.principalVotes||[]).filter(v=>v.pending&&!serverPV.some(y=>String(y.id)===String(v.id)));state.principalVotes=[...serverPV,...pendingPV];
       BEHAVIORS=(state.behaviorConfig.length?state.behaviorConfig:DEFAULT_BEHAVIORS.map((name,i)=>({id:"B"+i,name,weight:25}))).map(x=>typeof x==="string"?x:x.name).filter(Boolean);
       const fp=dataFingerprint();
       const changed=fp!==lastFingerprint;
@@ -352,7 +352,7 @@ function principalVoteForTeacher(){
   if(btn){btn.disabled=true;btn.style.opacity=".6";setTimeout(()=>{if(btn){btn.disabled=false;btn.style.opacity="1"}},2500)}
   const weight=Number(state.principalVoteWeight||2)||2;
   const c=currentClass();
-  const votes=selectedTeachers.map(teacher=>({id:uid("PV"),teacher,weight,classId:c?.id||"",date:today(),time:timeNow(),ms:Date.now(),voter:"المديرة"}));
+  const votes=selectedTeachers.map(teacher=>({id:uid("PV"),teacher,weight,classId:c?.id||"",date:today(),time:timeNow(),ms:Date.now(),voter:"المديرة",pending:true}));
   state.principalVotes.push(...votes); saveLocal(); flashButtons();
   const box=$("#principalVoteStatus");
   if(box) box.innerHTML=`<span class="success">✓ تم تسجيل تصويت المديرة لـ ${esc(selectedTeachers.join("، "))} بقيمة ${weight} نقطة لكل معلمة.</span>`;
