@@ -632,15 +632,20 @@ function staffClassDisplay(value){
   return ids.map(id=>state.classes.find(c=>String(c.id)===id)?.name||id).join("، ")||"—";
 }
 function renderStaff(){
-  return `<section class="card"><div class="row between"><div><h2>الإداريات وحسابات الدخول</h2><p class="muted">الحسابات تظهر في الصفحة الرئيسية لتسجيل الدخول.</p></div><button class="btn primary" onclick="openStaffModal()">إضافة حساب إدارية</button></div><table><thead><tr><th>الاسم</th><th>الصفة</th><th>اسم المستخدم</th><th>الفصول</th><th>إجراء</th></tr></thead><tbody>${state.staff.map(s=>{
-    const id=staffDisplayValue(s?.id,"");
-    const name=staffDisplayValue(s?.name);
-    const role=staffDisplayValue(s?.role);
-    const username=staffDisplayValue(s?.username);
-    const classes=staffClassDisplay(s?.classes);
-    const malformed=[name,role,username].every(v=>v==="—");
-    return `<tr><td>${esc(name)}${malformed?'<div class="muted">سجل حساب غير مكتمل</div>':''}</td><td>${esc(role)}</td><td>${esc(username)}</td><td>${esc(classes)}</td><td>${id?`<button class="btn danger sm" onclick="deleteStaff('${esc(id)}')">حذف</button>`:'<span class="muted">—</span>'}</td></tr>`;
-  }).join("")||`<tr><td colspan="5" class="muted">لا توجد حسابات.</td></tr>`}</tbody></table></section><section class="card"><div class="row between"><h3>أسماء المعلمات للاقتراح</h3><button class="btn" onclick="addTeacherName()">إضافة اسم</button></div><div class="chips">${state.teacherNames.map(x=>`<span class="chip">${esc(staffDisplayValue(x?.name??x))} <b onclick="deleteTeacherName('${esc(staffDisplayValue(x?.name??x,""))}')">×</b></span>`).join("")||`<span class="muted">لا توجد أسماء بعد.</span>`}</div></section>`}
+  const staffRows=(Array.isArray(state.staff)?state.staff:[]).filter(s=>{
+    return s&&typeof s==="object"&&
+      String(s.username??"").trim()!==""&&
+      String(s.password??"").trim()!==""&&
+      String(s.name??"").trim()!=="";
+  });
+  return `<section class="card"><div class="row between"><div><h2>الإداريات وحسابات الدخول</h2><p class="muted">الحسابات تظهر في الصفحة الرئيسية لتسجيل الدخول.</p></div><button class="btn primary" onclick="openStaffModal()">إضافة حساب إدارية</button></div><table><thead><tr><th>الاسم</th><th>الصفة</th><th>اسم المستخدم</th><th>الفصول</th><th>إجراء</th></tr></thead><tbody>${staffRows.map(s=>{
+    const id=staffDisplayValue(s.id,"");
+    const name=staffDisplayValue(s.name);
+    const role=staffDisplayValue(s.role);
+    const username=staffDisplayValue(s.username);
+    const classes=staffClassDisplay(s.classes);
+    return `<tr><td>${esc(name)}</td><td>${esc(role)}</td><td>${esc(username)}</td><td>${esc(classes)}</td><td>${id?`<button class="btn danger sm" onclick="deleteStaff('${esc(id)}')">حذف</button>`:'<span class="muted">—</span>'}</td></tr>`;
+  }).join("")||`<tr><td colspan="5" class="muted">لا توجد حسابات إدارية مكتملة.</td></tr>`}</tbody></table></section><section class="card"><div class="row between"><h3>أسماء المعلمات للاقتراح</h3><button class="btn" onclick="addTeacherName()">إضافة اسم</button></div><div class="chips">${state.teacherNames.map(x=>`<span class="chip">${esc(staffDisplayValue(x?.name??x))} <b onclick="deleteTeacherName('${esc(staffDisplayValue(x?.name??x,""))}')">×</b></span>`).join("")||`<span class="muted">لا توجد أسماء بعد.</span>`}</div></section>`}
 function openStaffModal(){$("#modal").classList.remove("hidden");$("#modal").innerHTML=`<div class="modalbox"><h2>إضافة حساب إدارية</h2><div class="grid g2"><div class="field"><label>الاسم</label><input id="stname"></div><div class="field"><label>الصفة</label><input id="strole" value="إدارية"></div><div class="field"><label>اسم المستخدم</label><input id="stuser"></div><div class="field"><label>كلمة المرور</label><input id="stpass" type="password"></div></div><label>الفصول المسندة</label><div class="chips" id="classchips">${state.classes.map(c=>`<span class="chip" data-id="${esc(c.id)}" onclick="this.classList.toggle('sel')">${esc(c.name)}</span>`).join("")}</div><div class="row" style="margin-top:18px"><button class="btn primary" onclick="saveStaff()">حفظ الحساب</button><button class="btn" onclick="closeModal()">إلغاء</button></div></div>`}
 function saveStaff(){const classes=[...document.querySelectorAll('#classchips .sel')].map(x=>x.dataset.id),s={id:uid('ST'),name:$('#stname').value.trim(),role:$('#strole').value.trim()||'إدارية',username:$('#stuser').value.trim(),password:$('#stpass').value,classes:classes.join(',')};if(!s.name||!s.username||!s.password){toast('أكملي بيانات الحساب');return}if(state.staff.some(x=>x.username===s.username)){toast('اسم المستخدم مستخدم مسبقاً');return}state.staff.push(s);saveLocal();push('saveStaff',s);closeModal();render();toast('تم إنشاء الحساب')}
 function deleteStaff(id){if(!confirm('حذف الحساب؟'))return;state.staff=state.staff.filter(x=>x.id!==id);saveLocal();push('deleteStaff',{id});render()}
