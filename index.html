@@ -113,7 +113,7 @@ async function pull(silent=true){
       lastFingerprint=fp;
       saveLocal();
       // أثناء الرصد لا نعيد بناء صفحة الرصد تلقائيًا؛ حتى لا يختفي الفصل أو تظليل عناصر السلوك.
-      const keepScanView=(route==="scan"&&selectedClassId);
+      const keepScanView=(route==="scan"&&selectedClassId&&!!currentClass());
       if((changed||!silent)&&!keepScanView)render(false);
       if(!silent)toast("تم تحديث الفصول والطالبات بنجاح");
       return true;
