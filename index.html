@@ -137,6 +137,9 @@ function go(r,cid=""){
     selectedClassId=cid||selectedClassId;
   }
   render();
+  if(r==="scan"){
+    pull(false).then(()=>{if(route==="scan")render(false)});
+  }
 }
 function currentClass(){return state.classes.find(c=>String(c.id)===String(selectedClassId))}
 function isAdmin(){const s=session();return !!(s&&(s.role==="مديرة النظام"||s.role==="مديرة"||s.username==="admin"||s.id==="admin"))}
@@ -851,7 +854,7 @@ function exportCurrentHTML(){const blob=new Blob([reportHTMLCurrent()],{type:'te
 function closeModal(){$('#modal').classList.add('hidden');$('#modal').innerHTML=''}
 function moeLogoTag(cls){return MOE_LOGO_URL?`<img class="${cls||''}" src="${esc(MOE_LOGO_URL)}" alt="شعار وزارة التعليم">`:''}
 function initMoeLogoHeader(){const box=$('#moeLogoHeader');if(!box)return;if(MOE_LOGO_URL){box.innerHTML=`<img src="${esc(MOE_LOGO_URL)}" alt="شعار وزارة التعليم">`;box.classList.add('show')}}
-loadLocal();loadNotifications();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan'}render();if(session()){startPolling();}else if(qclass){pull(false);}
+loadLocal();loadNotifications();updateClock();clockTimer=setInterval(updateClock,1000);initMoeLogoHeader();const qclass=new URLSearchParams(location.search).get('class');if(qclass){selectedClassId=qclass;route='scan';render();pull(false).then(()=>{if(route==="scan")render(false)});}else{render();if(session())startPolling();}
 </script>
 </body>
 </html>
