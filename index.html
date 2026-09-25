@@ -531,13 +531,20 @@ function closeVoteSummaryAndExit(){
     sessionStorage.removeItem(SESSION_KEY);
   }catch{}
 
-  // مغادرة المنصة نهائيًا بدل الرجوع إلى شاشة دخول المعلمات.
+  // إزالة رابط الفصل من سجل المتصفح حتى لا تعود صفحة التصويت عند الضغط على "رجوع".
+  // العودة إلى صفحة التصويت تكون فقط عند مسح الباركود وفتح الرابط من جديد.
+  try{
+    const cleanUrl=location.origin+location.pathname;
+    history.replaceState(null,"",cleanUrl);
+  }catch{}
+
+  // مغادرة المنصة نهائيًا بدل الرجوع إلى شاشة الدخول أو صفحة التصويت.
   try{
     window.open('', '_self');
     window.close();
   }catch{}
 
-  // إذا منع المتصفح إغلاق التبويب، ننتقل إلى صفحة فارغة خارج المنصة.
+  // إذا منع المتصفح إغلاق التبويب، تبقى الصفحة خارج المنصة.
   setTimeout(()=>{
     try{ location.replace('about:blank'); }catch{}
   },120);
