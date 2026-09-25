@@ -478,52 +478,8 @@ function bulkApplySameBehaviorConfirm(){
   saveAllStudentsToday();
 }
 function showTeacherThanks(teacher,className){
-  const name=String(teacher||"المعلمة").trim()||"المعلمة";
-  const c=currentClass();
-  const rows=(state.attendance||[]).filter(a=>a.date===today()&&String(a.classId)===String(c?.id));
-  const studentRows=rows.filter(a=>a.studentId&&a.status!=="تصويت المديرة");
-  const uniqueStudents=new Set(studentRows.map(a=>String(a.studentId))).size;
-  const behaviorCounts={};
-  studentRows.forEach(a=>String(a.behavior||"").split(/[،,]/).map(x=>x.trim()).filter(Boolean).forEach(b=>behaviorCounts[b]=(behaviorCounts[b]||0)+1));
-  const summary=Object.entries(behaviorCounts);
-  const total=studentRows.length;
-  const box=document.createElement("div");
-  box.id="teacherThanksOverlay";
-  box.innerHTML=`<div style="position:fixed;inset:0;z-index:99999;background:rgba(8,31,49,.62);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl">
-    <div style="width:min(620px,100%);max-height:92vh;overflow:auto;background:linear-gradient(145deg,#ffffff,#f4fbf8);border:1px solid #d7eee6;border-radius:28px;padding:28px 20px;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.25);animation:thanksPop .45s ease-out">
-      <div style="font-size:54px;line-height:1;margin-bottom:10px">🌷✨</div>
-      <div style="font-size:26px;font-weight:800;color:#0f766e;margin-bottom:8px">شكرًا لكِ يا ${esc(name)}</div>
-      <div style="font-size:17px;font-weight:700;color:#193b53;line-height:1.9">نقدّر جهودكِ الجميلة في تعزيز السلوك الإيجابي لدى طالباتكِ</div>
-      <div style="margin:14px auto;width:min(420px,100%);height:4px;border-radius:20px;background:linear-gradient(90deg,#b7e4d4,#0f766e,#b7e4d4)"></div>
-      <div style="font-size:14px;color:#6b7c8b;margin-bottom:14px">تم اعتماد الرصد ${className?"— "+esc(className):""}</div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 auto 14px;max-width:520px">
-        <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:13px"><b style="display:block;font-size:25px;color:#0f766e">${total}</b><span style="font-size:12px;color:#71808c">إجمالي عمليات الرصد</span></div>
-        <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:13px"><b style="display:block;font-size:25px;color:#0f766e">${uniqueStudents}</b><span style="font-size:12px;color:#71808c">طالبات تم رصدهن</span></div>
-      </div>
-      <div style="background:#fff;border:1px solid #dcece6;border-radius:16px;padding:14px;text-align:right;max-width:520px;margin:auto">
-        <div style="font-weight:800;color:#193b53;margin-bottom:9px">📋 ملخص عناصر السلوك</div>
-        ${summary.length?summary.map(([b,n])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f1;font-size:13px"><span>${esc(b)}</span><b style="color:#0f766e">${n}</b></div>`).join(""):'<div style="color:#71808c;font-size:12px">لا توجد تفاصيل إضافية.</div>'}
-      </div>
-      <div style="margin-top:17px;font-size:13px;color:#64748b">سيتم الانتقال إلى ملخص التصويت وإعادة الرصد تلقائيًا خلال <b id="thanksCountdown">30</b> ثوانٍ</div>
-      <button id="closeThanksBtn" style="margin-top:12px;border:0;border-radius:14px;padding:12px 25px;background:#0f766e;color:#fff;font-size:16px;font-weight:700;cursor:pointer">الانتقال الآن إلى ملخص التصويت</button>
-    </div>
-  </div>`;
-  document.body.appendChild(box);
-  playThanksSound();
-  let left=30;
-  const finish=()=>{
-    clearInterval(timer);
-    const b=document.getElementById("teacherThanksOverlay");
-    if(b)b.remove();
-    renderPostVoteSummary(teacher,className);
-  };
-  const timer=setInterval(()=>{
-    left--;
-    const el=document.getElementById("thanksCountdown");
-    if(el)el.textContent=String(Math.max(0,left));
-    if(left<=0)finish();
-  },1000);
-  document.getElementById("closeThanksBtn")?.addEventListener("click",finish);
+  // بعد اعتماد الرصد ننتقل مباشرة إلى صفحة ملخص التصويت.
+  renderPostVoteSummary(teacher,className);
 }
 function renderPostVoteSummary(teacher,className){
   const c=currentClass();
@@ -546,11 +502,30 @@ function renderPostVoteSummary(teacher,className){
       <h3>⭐ ملخص تصويت المديرة للمعلمات</h3>
       <div class="vote-board">${summaryRows}</div>
     </section>
-    <div class="row scan-summary-actions" style="justify-content:center;margin-top:18px">
-      <button class="btn primary" onclick="go('scan','${target}')">🔄 إعادة الرصد</button>
-      <button class="btn" onclick="backToScanClasses()">✕ إغلاق</button>
+    <div style="margin-top:18px;padding:12px 16px;border-radius:14px;background:#f7fbfd;border:1px solid #dce9ef;color:#64748b;font-size:13px">
+      سيتم إغلاق الملخص والخروج من الموقع تلقائيًا خلال <b id="voteSummaryCountdown" style="color:var(--teal);font-size:18px">30</b> ثانية
+    </div>
+    <div class="row scan-summary-actions" style="justify-content:center;margin-top:14px">
+      <button class="btn danger" onclick="closeVoteSummaryAndExit()">✕ إغلاق والخروج</button>
     </div>
   </section>`;
+
+  if(window.voteSummaryTimer)clearInterval(window.voteSummaryTimer);
+  let left=30;
+  window.voteSummaryTimer=setInterval(()=>{
+    left--;
+    const el=document.getElementById("voteSummaryCountdown");
+    if(el)el.textContent=String(Math.max(0,left));
+    if(left<=0)closeVoteSummaryAndExit();
+  },1000);
+}
+function closeVoteSummaryAndExit(){
+  if(window.voteSummaryTimer){
+    clearInterval(window.voteSummaryTimer);
+    window.voteSummaryTimer=null;
+  }
+  // خروج كامل من جلسة المنصة ثم العودة لشاشة الدخول.
+  logout();
 }
 function playThanksSound(){
   try{
