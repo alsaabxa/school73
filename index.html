@@ -489,8 +489,17 @@ function bulkApplySameBehaviorConfirm(){
   saveAllStudentsToday();
 }
 function showTeacherThanks(teacher,className){
-  // بعد اعتماد الرصد ننتقل مباشرة إلى صفحة ملخص التصويت.
-  renderPostVoteSummary(teacher,className);
+  const safeTeacher=esc(teacher||"يا معلمة");
+  const safeClass=esc(className||"الفصل");
+  playThanksSound();
+  $("#app").innerHTML=`<section class="card" style="max-width:760px;margin:55px auto;text-align:center;padding:42px 24px">
+    <div style="font-size:64px;line-height:1;margin-bottom:14px">🌷</div>
+    <h2 style="color:var(--teal);font-size:28px;margin:0 0 10px">شكرًا لكِ ${safeTeacher}</h2>
+    <p style="font-size:17px;line-height:2;margin:0;color:var(--navy)">تم اعتماد رصد ${safeClass} بنجاح</p>
+    <p class="muted" style="font-size:14px;margin-top:8px">شكرًا لجهودكِ الجميلة في رصد وتعزيز السلوك الإيجابي لطالباتكِ.</p>
+  </section>`;
+  if(window.thanksTimer)clearTimeout(window.thanksTimer);
+  window.thanksTimer=setTimeout(()=>renderPostVoteSummary(teacher,className),3000);
 }
 function renderPostVoteSummary(teacher,className){
   const c=currentClass();
