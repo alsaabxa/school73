@@ -96,8 +96,8 @@ async function pull(silent=true){
       if(!r.ok)throw new Error("HTTP "+r.status);
       const x=await r.json();
       if(x.ok===false)throw new Error(x.error||"تعذر الاتصال بمصدر البيانات");
-      state.classes=Array.isArray(x.classes)?x.classes:[];
-      state.students=Array.isArray(x.students)?x.students:[];
+      if(Array.isArray(x.classes) && (x.classes.length || !(state.classes||[]).length)) state.classes=x.classes;
+      if(Array.isArray(x.students) && (x.students.length || !(state.students||[]).length)) state.students=x.students;
       state.staff=Array.isArray(x.staff)?x.staff:[];
       const serverAtt=Array.isArray(x.attendance)?x.attendance:[];
       const pendingLocal=(state.attendance||[]).filter(a=>a.pending&&!serverAtt.some(y=>y.id===a.id));
@@ -172,8 +172,8 @@ async function login(){
       const res=await fetch(SCRIPT_URL+"?action=bootstrap&_="+Date.now(),{cache:"no-store"});
       const data=await res.json();
       if(data.ok===false) throw new Error(data.error||"تعذر الاتصال");
-      state.classes=(data.classes||[]).map(c=>({...c,number:c.number||""}));
-      state.students=data.students||[];
+      if(Array.isArray(data.classes) && (data.classes.length || !(state.classes||[]).length)) state.classes=data.classes.map(c=>({...c,number:c.number||""}));
+      if(Array.isArray(data.students) && (data.students.length || !(state.students||[]).length)) state.students=data.students;
       state.staff=data.staff||[];
       state.attendance=data.attendance||[];
       state.teacherNames=data.teacherNames||[];
