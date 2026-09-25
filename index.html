@@ -524,8 +524,23 @@ function closeVoteSummaryAndExit(){
     clearInterval(window.voteSummaryTimer);
     window.voteSummaryTimer=null;
   }
-  // خروج كامل من جلسة المنصة ثم العودة لشاشة الدخول.
-  logout();
+
+  // إنهاء جلسة المعلمة ومسح بيانات الدخول المحلية.
+  try{
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+  }catch{}
+
+  // مغادرة المنصة نهائيًا بدل الرجوع إلى شاشة دخول المعلمات.
+  try{
+    window.open('', '_self');
+    window.close();
+  }catch{}
+
+  // إذا منع المتصفح إغلاق التبويب، ننتقل إلى صفحة فارغة خارج المنصة.
+  setTimeout(()=>{
+    try{ location.replace('about:blank'); }catch{}
+  },120);
 }
 function playThanksSound(){
   try{
