@@ -348,7 +348,7 @@ function renderScan(direct=false){
         const chipBehaviors=activeBehaviors.length?activeBehaviors:DEFAULT_BEHAVIORS;
         return `<div class="student-row scan-student-row ${done?'present':''}" data-name="${esc(s.name)}">
           <div style="width:100%">
-            <div class="row between scan-student-name"><b>${esc(s.name)}</b><span class="pill">${done ? ((r&&r.pending) ? '✓ تم اختيار السلوك' : '✓ تم الرصد') : 'جاهزة للرصد'}</span></div>
+            <div class="row between scan-student-name"><b>${esc(s.name)}</b><span class="pill">${done ? '✓ تم الرصد' : 'جاهزة للرصد'}</span></div>
             <div class="chips behavior-chips">${chipBehaviors.map(b=>`<span class="chip sm ${r&&hasBehavior(r,b)?'sel':''}" onclick="markBehavior('${esc(s.id)}','${esc(b)}')">${esc(b)}</span>`).join("")}</div>
           </div>
         </div>`;
@@ -358,7 +358,7 @@ function renderScan(direct=false){
     <div class="scan-actions">
       <button class="btn primary scan-action" onclick="saveScan()">💾 حفظ وإرسال رصد اليوم</button>
       <button class="btn danger scan-action" onclick="deleteToday('${esc(c.id)}')">إعادة رصد اليوم</button>
-      <span class="pill">${rows.some(x=>x.pending) ? 'تم اختيار '+rows.length+' سجل — لم يُحفظ بعد' : 'تم رصد '+rows.length+' سجل'}</span>
+      <span class="pill">تم رصد ${rows.length} سجل</span>
     </div>
     <div class="scan-bulk">
       <button class="btn scan-action" onclick="bulkApplySameBehaviorConfirm()">📋 تحديد نفس العنصر لجميع الطالبات دفعة واحدة</button>
@@ -602,7 +602,7 @@ function playThanksSound(){
     setTimeout(()=>ac.close?.(),1100);
   }catch{}
 }
-function saveScan(){const c=currentClass(),rows=state.attendance.filter(a=>a.date===today()&&String(a.classId)===String(c?.id));if(!c||!rows.length){toast("لا توجد سجلات للحفظ");return}const teacher=$("#teacher")?.value.trim();rows.forEach(x=>{if(teacher)x.teacher=teacher;x.pending=false});saveLocal();addImmediateScanNotification(rows);push("saveAttendance",rows);toast("تم حفظ واعتماد الرصد بنجاح");beepSuccess();showTeacherThanks(teacher,c.name)}function saveAllStudentsToday(){
+function saveScan(){const c=currentClass(),rows=state.attendance.filter(a=>a.date===today()&&String(a.classId)===String(c?.id));if(!c||!rows.length){toast("لا توجد سجلات للحفظ");return}const teacher=$("#teacher")?.value.trim();rows.forEach(x=>{if(teacher)x.teacher=teacher});saveLocal();addImmediateScanNotification(rows);push("saveAttendance",rows);toast("تم حفظ واعتماد الرصد بنجاح");beepSuccess();showTeacherThanks(teacher,c.name)}function saveAllStudentsToday(){
   const c=currentClass();
   if(!c){toast("اختاري فصلاً أولاً");return}
   const behaviors=selectedBehaviors();
