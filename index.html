@@ -348,7 +348,7 @@ function renderScan(direct=false){
         const r=rows.find(x=>x.studentId===s.id);
         const done=!!r;
         const chipBehaviors=activeBehaviors.length?activeBehaviors:DEFAULT_BEHAVIORS;
-        return `<div class="student-row scan-student-row ${done?'present':''}" data-name="${esc(s.name)}">
+        return `<div class="student-row scan-student-row ${done?'present':''}" data-name="${esc(s.name)}" data-student-id="${esc(s.id)}">
           <div style="width:100%">
             <div class="row between scan-student-name"><b>${esc(s.name)}</b><span class="pill">${done ? '✓ تم الرصد' : 'جاهزة للرصد'}</span></div>
             <div class="chips behavior-chips">${chipBehaviors.map(b=>`<span class="chip sm ${r&&hasBehavior(r,b)?'sel':''}" onclick="markBehavior('${esc(s.id)}','${esc(b)}')">${esc(b)}</span>`).join("")}</div>
@@ -458,6 +458,30 @@ function addBehaviorSetting(){
   wrap.appendChild(row);
 }
 
+function updateScanStudentUI(id,record){
+  const row=[...document.querySelectorAll(".scan-student-row")].find(el=>String(el.dataset.studentId)===String(id));
+  if(!row)return;
+  const selected=record?String(record.behavior||"").split(/[،,]/).map(x=>x.trim()).filter(Boolean):[];
+  row.classList.toggle("present",!!record);
+  const status=row.querySelector(".scan-student-name .pill");
+  if(status)status.textContent=record?"✓ تم الرصد":"جاهزة للرصد";
+  row.querySelectorAll(".behavior-chips .chip").forEach(ch=>{
+    const name=ch.textContent.trim();
+    ch.classList.toggle("sel",selected.includes(name));
+  });
+  const c=currentClass();
+  if(c){
+    const total=state.students.filter(s=>String(s.classId)===String(c.id)).length;
+    const done=new Set(state.attendance.filter(a=>a.date===today()&&String(a.classId)===String(c.id)&&a.studentId).map(a=>String(a.studentId))).size;
+    const pct=total?Math.round(done/total*100):0;
+    const detail=document.querySelector(".scan-progress-detail"),percent=document.querySelector(".scan-percent"),bar=document.querySelector(".scan-progress-bar i");
+    if(detail)detail.textContent=done+" من "+total+" طالبة";
+    if(percent)percent.textContent=pct+"%";
+    if(bar)bar.style.width=pct+"%";
+    const countPill=document.querySelector(".scan-actions > .pill");
+    if(countPill)countPill.textContent="تم رصد "+state.attendance.filter(a=>a.date===today()&&String(a.classId)===String(c.id)).length+" سجل";
+  }
+}
 function markBehavior(id,behavior){
   const c=currentClass(),s=state.students.find(x=>x.id===id),d=today();
   if(!c||!s)return;
@@ -466,14 +490,21 @@ function markBehavior(id,behavior){
   if(i>=0){
     let arr=String(state.attendance[i].behavior||"").split(/[،,]/).map(x=>x.trim()).filter(Boolean);
     if(arr.includes(behavior)) arr=arr.filter(x=>x!==behavior); else arr.push(behavior);
-    if(!arr.length){const removedId=state.attendance[i].id,wasSynced=!state.attendance[i].pending;state.attendance.splice(i,1);saveLocal();beepBehavior();flashButtons();if(wasSynced)push("deleteAttendance",{id:removedId,studentId:id,classId:c.id,date:d});render(false);return}
+    if(!arr.length){
+      const removedId=state.attendance[i].id,wasSynced=!state.attendance[i].pending;
+      state.attendance.splice(i,1);
+      saveLocal();beepBehavior();flashButtons();
+      if(wasSynced)push("deleteAttendance",{id:removedId,studentId:id,classId:c.id,date:d});
+      updateScanStudentUI(id,null);
+      return
+    }
     rec=Object.assign({},state.attendance[i],{behavior:arr.join("،"),status:"متميز",time:timeNow(),teacher:$("#teacher")?.value.trim()||state.attendance[i].teacher||"",pending:true});
     state.attendance[i]=rec;
   }else{
     rec={id:uid("A"),classId:c.id,date:d,teacher:$("#teacher")?.value.trim()||"",time:timeNow(),ms:Date.now(),studentId:id,studentName:s.name,status:"متميز",behavior,pending:true};
     state.attendance.push(rec);
   }
-  saveLocal();beepBehavior();flashButtons();render(false);
+  saveLocal();beepBehavior();flashButtons();updateScanStudentUI(id,rec);
 }
 function beepBehavior(){
   try{
