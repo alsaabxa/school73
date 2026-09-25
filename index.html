@@ -181,8 +181,41 @@ async function login(){
   }
 }
 function logout(){localStorage.removeItem(SESSION_KEY);if(pollTimer)clearInterval(pollTimer);selectedTeachers=[];render()}
-function toggleTeacherChip(name){if(selectedTeachers.includes(name))selectedTeachers=selectedTeachers.filter(x=>x!==name);else selectedTeachers.push(name);render(false)}
-function addTeacherChipFromInput(){const el=$("#teacherNew"),name=(el?.value||"").trim();if(!name)return;if(!state.teacherNames.some(x=>(x.name||x)===name)){state.teacherNames.push({id:uid("T"),name});saveLocal();push("saveTeacherName",{name})}if(!selectedTeachers.includes(name))selectedTeachers.push(name);render(false)}
+function updateTeacherSelectionUI(){
+  document.querySelectorAll("#teacherChips .chip").forEach(ch=>{
+    const name=ch.dataset.teacherName||ch.textContent.trim();
+    ch.classList.toggle("sel",selectedTeachers.includes(name));
+  });
+  const hidden=$("#teacher");
+  if(hidden)hidden.value=selectedTeachers.join("، ");
+  const box=document.querySelector(".scan-selected-teachers");
+  if(hidden?.parentElement){
+    if(selectedTeachers.length){
+      if(box)box.innerHTML="الراصدات الآن: <b>"+esc(selectedTeachers.join("، "))+"</b>";
+      else hidden.insertAdjacentHTML("afterend",'<p class="muted scan-selected-teachers">الراصدات الآن: <b>'+esc(selectedTeachers.join("، "))+"</b></p>");
+    }else if(box)box.remove();
+  }
+}
+function toggleTeacherChip(name){
+  name=String(name||"").trim();
+  if(!name)return;
+  if(selectedTeachers.includes(name))selectedTeachers=selectedTeachers.filter(x=>x!==name);
+  else selectedTeachers.push(name);
+  updateTeacherSelectionUI();
+  saveLocal();
+}
+function addTeacherChipFromInput(){
+  const el=$("#teacherNew"),name=(el?.value||"").trim();
+  if(!name)return;
+  if(!state.teacherNames.some(x=>(x.name||x)===name)){
+    state.teacherNames.push({id:uid("T"),name});
+    saveLocal();
+    push("saveTeacherName",{name});
+  }
+  if(!selectedTeachers.includes(name))selectedTeachers.push(name);
+  if(el)el.value="";
+  updateTeacherSelectionUI();
+}
 function startPolling(){if(pollTimer)clearInterval(pollTimer);pull(true);pollTimer=setInterval(()=>pull(true),4000)}
 function loadNotifications(){try{const x=JSON.parse(localStorage.getItem(NOTIFY_KEY)||"[]");scanNotifications=Array.isArray(x)?x:[]}catch{scanNotifications=[]}}
 function saveNotifications(){try{localStorage.setItem(NOTIFY_KEY,JSON.stringify(scanNotifications.slice(0,30)))}catch{}}
@@ -204,6 +237,30 @@ function addImmediateScanNotification(records){
 }
 function processScanNotifications(previousAttendance,nextAttendance){if(!session())return;const prevIds=new Set((previousAttendance||[]).map(x=>String(x.id)));const incoming=(nextAttendance||[]).filter(x=>x?.id&&!prevIds.has(String(x.id)));if(!notifyInitialized){notifyInitialized=true;if(!localStorage.getItem(NOTIFY_SEEN_KEY)){try{localStorage.setItem(NOTIFY_SEEN_KEY,String(Math.max(0,...(nextAttendance||[]).map(notificationTime))))}catch{}}return}if(!incoming.length)return;const seenMs=Number(localStorage.getItem(NOTIFY_SEEN_KEY)||0);const fresh=incoming.filter(x=>notificationTime(x)>seenMs);if(!fresh.length)return;const items=fresh.sort((a,b)=>notificationTime(b)-notificationTime(a)).map(x=>{const cls=state.classes.find(c=>String(c.id)===String(x.classId))?.name||"فصل غير معروف";return {id:String(x.id),classId:x.classId,className:cls,studentName:x.studentName||"",teacher:x.teacher||"",time:x.time||"",date:x.date||today(),ms:notificationTime(x),seen:false}});scanNotifications=[...items,...scanNotifications.filter(n=>!items.some(i=>i.id===n.id))].slice(0,30);const maxMs=Math.max(seenMs,...items.map(x=>x.ms));try{localStorage.setItem(NOTIFY_SEEN_KEY,String(maxMs))}catch{}saveNotifications();renderNotificationUI();const classes=[...new Set(items.map(x=>x.className))];const msg=classes.length===1?"🔔 تم الرصد لفصل "+classes[0]:"🔔 تم الرصد لـ "+classes.length+" فصول";toast(msg);beepNotification()}
 function beepNotification(){try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const ac=new A(),o=ac.createOscillator(),g=ac.createGain();o.type="sine";o.frequency.setValueAtTime(880,ac.currentTime);o.frequency.setValueAtTime(1175,ac.currentTime+.11);g.gain.setValueAtTime(.0001,ac.currentTime);g.gain.exponentialRampToValueAtTime(.12,ac.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.55);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.58)}catch{}}
+function toggleNotifications(event){
+  event?.stopPropagation?.();
+  const panel=$("#notifyPanel");
+  if(!panel)return;
+  const opening=!panel.classList.contains("show");
+  panel.classList.toggle("show",opening);
+  if(opening){
+    scanNotifications=scanNotifications.map(n=>({...n,seen:true}));
+    saveNotifications();
+    renderNotificationUI();
+  }
+}
+function clearNotifications(event){
+  event?.stopPropagation?.();
+  scanNotifications=[];
+  saveNotifications();
+  const panel=$("#notifyPanel");
+  if(panel)panel.classList.remove("show");
+  renderNotificationUI();
+}
+document.addEventListener("click",function(e){
+  const wrap=$("#notifyWrap"),panel=$("#notifyPanel");
+  if(panel&&wrap&&!wrap.contains(e.target))panel.classList.remove("show");
+});
 function renderNotificationUI(){
   const count=$("#notifyCount"),list=$("#notifyList"),btn=$("#notifyBtn");
   if(!count||!list)return;
@@ -312,7 +369,7 @@ function renderScan(direct=false){
 
     <div class="field">
       <label>أسماء المعلمات الراصدات</label>
-      <div class="chips" id="teacherChips">${state.teacherNames.map(x=>{const nm=x.name||x;return `<span class="chip sm ${selectedTeachers.includes(nm)?'sel':''}" onclick="toggleTeacherChip('${esc(nm)}')">${esc(nm)}</span>`}).join("")||`<span class="muted">لا توجد أسماء محفوظة بعد.</span>`}</div>
+      <div class="chips" id="teacherChips">${state.teacherNames.map(x=>{const nm=x.name||x;return `<span class="chip sm ${selectedTeachers.includes(nm)?'sel':''}" data-teacher-name="${esc(nm)}" onclick="toggleTeacherChip(this.dataset.teacherName)">${esc(nm)}</span>`}).join("")||`<span class="muted">لا توجد أسماء محفوظة بعد.</span>`}</div>
       <div class="teacher-vote-row" style="margin-top:8px">
         <input id="teacherNew" placeholder="أضيفي اسمًا جديدًا واضغطي Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeacherChipFromInput()}">
         <button class="btn gold vote-btn teacher-vote-button" type="button" onclick="principalVoteForTeacher()">⭐ تصويت المديرة +${Number(state.principalVoteWeight||2)} نقطة</button>
